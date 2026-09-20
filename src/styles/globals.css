@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Shared UI components */
+@import "./ui/drawer.css";
+@import "./ui/navigation.css";
+
+/* Shared theming engine: @theme inline mapping + base layer. No colors. */
+@import "./utils/animations.css";
+@import "./utils/base.css";
+@import "./utils/app.css";
+
+@import "./theme/sparkverse-theme.css";
+@import "./utils/theme.css";
+
+@custom-variant dark (&:is(.dark *));
