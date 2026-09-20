@@ -83,11 +83,11 @@ const NavItem = memo(({ tab, activeId, onSelect }: NavItemProps) => {
           // was still hidden, and never again.)
           style={
             isActive
-              ? getAnimationStyle("fade", "none", { durationMs: 380 })
+              ? getAnimationStyle("slide", "none", { durationMs: 380 })
               : undefined
           }
         >
-          {tab.dropdown?.map((subCat: DropdownCategory) => (
+          {tab.dropdown?.map((subCat: DropdownCategory, _index) => (
             <div
               key={subCat.category}
               className="dropdown-column"
@@ -95,6 +95,7 @@ const NavItem = memo(({ tab, activeId, onSelect }: NavItemProps) => {
                 isActive
                   ? getAnimationStyle("fade", "none", {
                       durationMs: 320,
+                      // delayMs: 70 + index * 60,
                     })
                   : undefined
               }

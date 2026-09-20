@@ -5,6 +5,8 @@ import {
   useNavigationActions,
   useNavigationState,
 } from "@/components/providers/NavigationProvider";
+import { MOBILE_MENU_ID } from "@/packages/configs/navigation.config";
+import Hamburger from "./Hamburger";
 
 const NavbarDesktopAction = () => {
   const mobileMenuOpen = useNavigationState("mobileMenuOpen");
@@ -13,19 +15,11 @@ const NavbarDesktopAction = () => {
   return (
     <div className="header-actions">
       <ThemeToggle />
-
-      {/* Mobile Menu Toggle Burger Button */}
-      <button
-        type="button"
-        className={`hamburger ${mobileMenuOpen ? "open" : ""}`}
-        onClick={toggleMobileMenu}
-        aria-label="Toggle navigation menu"
-        aria-expanded={mobileMenuOpen}
-      >
-        <span />
-        <span />
-        <span />
-      </button>
+      <Hamburger
+        isOpen={mobileMenuOpen}
+        onToggle={toggleMobileMenu}
+        controls={MOBILE_MENU_ID}
+      />
     </div>
   );
 };

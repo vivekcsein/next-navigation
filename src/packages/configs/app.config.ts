@@ -159,6 +159,12 @@ const appConfig = {
       robots: "/robots.txt",
       sitemap: "/sitemap.xml",
     },
+
+    auth: {
+      signIn: "/auth/signin",
+      signUp: "/auth/signup",
+      profile: "/profile",
+    },
   },
 
   // API

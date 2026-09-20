@@ -6,11 +6,13 @@ import {
   useNavigationState,
 } from "@/components/providers/NavigationProvider";
 import appConfig from "@/packages/configs/app.config";
+import { MOBILE_MENU_ID } from "@/packages/configs/navigation.config";
 import { useNavigationAutoClose } from "@/packages/hooks/useNavigationAutoClose";
 import { cn } from "@/packages/utils/cn";
 import NavbarDesktop from "../features/navigation/navbar/NavbarDesktop";
 import NavbarDesktopAction from "../features/navigation/navbar/NavbarDesktopAction";
 import NavbarMobile from "../features/navigation/navbar/NavbarMobile";
+import NavigationMobileFooter from "../features/navigation/navbar/NavigationMobileFooter";
 import Drawer from "../ui/drawer/Drawer";
 import NavigationLogo from "../ui/images/NavigationLogo";
 
@@ -24,8 +26,6 @@ type HeaderProps = {
  * need to run *inside* the `NavigationProvider` this file also creates —
  * a component can't consume a context it renders itself.
  */
-
-const MOBILE_MENU_ID = "mobile-menu";
 const HeaderContent = ({ sticky = true }: HeaderProps) => {
   const mobileMenuOpen = useNavigationState("mobileMenuOpen");
   const { setMobileMenuOpen, closeAll } = useNavigationActions();
@@ -48,7 +48,7 @@ const HeaderContent = ({ sticky = true }: HeaderProps) => {
       )}
     >
       <div className="header-main">
-        <NavigationLogo src={appConfig.site.logo} width={40} height={40} />
+        <NavigationLogo src={appConfig.site.logo} />
         <NavbarDesktop />
         <NavbarDesktopAction />
       </div>
@@ -61,6 +61,7 @@ const HeaderContent = ({ sticky = true }: HeaderProps) => {
         isOpen={mobileMenuOpen}
         onClose={closeMenu}
         hideCloseButton
+        footer={<NavigationMobileFooter />}
       >
         <NavbarMobile />
       </Drawer>
