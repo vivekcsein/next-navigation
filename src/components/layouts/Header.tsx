@@ -1,10 +1,13 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   useNavigationActions,
   useNavigationState,
 } from "@/components/providers/NavigationProvider";
 import appConfig from "@/packages/configs/app.config";
+import { useNavigationAutoClose } from "@/packages/hooks/useNavigationAutoClose";
+import { cn } from "@/packages/utils/cn";
 import NavbarDesktop from "../features/navigation/navbar/NavbarDesktop";
 import NavbarDesktopAction from "../features/navigation/navbar/NavbarDesktopAction";
 import NavbarMobile from "../features/navigation/navbar/NavbarMobile";
@@ -12,6 +15,7 @@ import Drawer from "../ui/drawer/Drawer";
 import NavigationLogo from "../ui/images/NavigationLogo";
 
 type HeaderProps = {
+  /** Keep the header pinned while scrolling. On by default — the drawer is offset from the header, so it needs to stay in view. */
   sticky?: boolean;
 };
 
@@ -20,32 +24,43 @@ type HeaderProps = {
  * need to run *inside* the `NavigationProvider` this file also creates —
  * a component can't consume a context it renders itself.
  */
-const HeaderContent = ({ sticky }: HeaderProps) => {
+
+const MOBILE_MENU_ID = "mobile-menu";
+const HeaderContent = ({ sticky = true }: HeaderProps) => {
   const mobileMenuOpen = useNavigationState("mobileMenuOpen");
-  const { setMobileMenuOpen } = useNavigationActions();
+  const { setMobileMenuOpen, closeAll } = useNavigationActions();
+
+  useNavigationAutoClose(closeAll);
+
+  const closeMenu = useCallback(
+    () => setMobileMenuOpen(false),
+    [setMobileMenuOpen],
+  );
 
   return (
-    <header className={`header ${sticky ? "sticky top-0" : ""}`}>
+    // `menu-open` lifts the header above the drawer layer, so the hamburger
+    // (which morphs into the X) stays visible and clickable in place.
+    <header
+      className={cn(
+        "header",
+        sticky && "header-sticky",
+        mobileMenuOpen && "menu-open",
+      )}
+    >
       <div className="header-main">
-        <NavigationLogo src={appConfig.site.logo} />
+        <NavigationLogo src={appConfig.site.logo} width={40} height={40} />
         <NavbarDesktop />
         <NavbarDesktopAction />
       </div>
 
-      {/* Backdrop — click outside the drawer to close it */}
-      <button
-        type="button"
-        className={`mobile-drawer-backdrop ${mobileMenuOpen ? "is-visible" : ""}`}
-        onClick={() => setMobileMenuOpen(false)}
-        aria-label="Close navigation menu"
-        tabIndex={mobileMenuOpen ? 0 : -1}
-      />
-
       <Drawer
+        id={MOBILE_MENU_ID}
+        ariaLabel="Navigation menu"
+        rootClassName="mobile-menu-root"
         origin="right"
         isOpen={mobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
-        footer={null}
+        onClose={closeMenu}
+        hideCloseButton
       >
         <NavbarMobile />
       </Drawer>
@@ -53,10 +68,6 @@ const HeaderContent = ({ sticky }: HeaderProps) => {
   );
 };
 
-const Header = ({ sticky }: HeaderProps) => (
-  <>
-    <HeaderContent sticky={sticky} />
-  </>
-);
+const Header = (props: HeaderProps) => <HeaderContent {...props} />;
 
 export default Header;

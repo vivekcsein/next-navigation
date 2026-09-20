@@ -1,34 +1,36 @@
-import appConfig from "@/packages/configs/app.config";
-import FooterNavbar from "../features/navigation/footer/FooterNavbar";
-import NavigationLogo from "../ui/images/NavigationLogo";
+import Link from "next/link";
+import { footerNav } from "@/packages/configs/navigation.config";
+import FooterAccordion from "../features/navigation/footer/FooterAccordion";
 
-const Footer = () => {
-  const year = new Date().getFullYear();
-
+/**
+ * Server component. Renders the column layout (>= 768px) and the accordion
+ * (< 768px) side by side; CSS shows exactly one, so there's no hydration
+ * flash and no JS-based breakpoint check. The hidden one is display:none,
+ * so it's out of the accessibility tree too.
+ */
+const FooterNavbar = () => {
   return (
-    <footer className="site-footer">
-      <div className="site-footer-inner">
-        <div className="site-footer-top">
-          <div className="site-footer-brand">
-            <NavigationLogo
-              width={128}
-              height={128}
-              src={appConfig.site.logo}
-            />
-            <p className="site-footer-tagline">{appConfig.site.description}</p>
-            {/* <SocialLinks /> */}
+    <nav className="site-footer-nav" aria-label="Footer">
+      <div className="site-footer-columns">
+        {footerNav.map((section) => (
+          <div key={section.title} className="site-footer-column">
+            <h4 className="site-footer-heading">{section.title}</h4>
+            <ul className="site-footer-links">
+              {section.items.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className="site-footer-link">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
-          <FooterNavbar />
-        </div>
-
-        <div className="site-footer-bottom">
-          <p className="site-footer-copyright">
-            &copy; {year} {appConfig.app.name}. All rights reserved.
-          </p>
-        </div>
+        ))}
       </div>
-    </footer>
+
+      <FooterAccordion sections={footerNav} />
+    </nav>
   );
 };
 
-export default Footer;
+export default FooterNavbar;

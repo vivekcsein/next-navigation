@@ -1,83 +1,81 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { memo, useCallback } from "react";
 import {
   useNavigationActions,
   useNavigationState,
 } from "@/components/providers/NavigationProvider";
-import { Link } from "@/components/ui";
+import AccordionItem from "@/components/ui/accordian/AccordionItem";
 import { mainNav } from "@/packages/configs/navigation.config";
+import { cn } from "@/packages/utils/cn";
 import type { NavTab } from "@/types/navigation";
 
-type MobileAccordionSectionProps = {
+type MobileNavSectionProps = {
   tab: NavTab;
   isExpanded: boolean;
   onToggle: (id: string) => void;
   onLinkClick: () => void;
 };
 
-const MobileAccordionSection = memo(
-  ({ tab, isExpanded, onToggle, onLinkClick }: MobileAccordionSectionProps) => {
+const MobileNavSection = memo(
+  ({ tab, isExpanded, onToggle, onLinkClick }: MobileNavSectionProps) => {
+    const pathname = usePathname();
     const handleToggle = useCallback(
       () => onToggle(tab.id),
       [onToggle, tab.id],
     );
 
-    // Simple navigation item
+    // Plain destination — same row height/typography as an accordion trigger.
     if (!tab.dropdown?.length) {
+      const isCurrentRoute = tab.href !== undefined && pathname === tab.href;
+
       return (
-        <Link
-          variant="secondary"
-          href={tab.href ?? "#"}
-          className="mobile-accordion-trigger"
-          onClick={onLinkClick}
-        >
-          {tab.title}
-        </Link>
+        <div className="accordion-item">
+          <Link
+            href={tab.href ?? "#"}
+            className={cn("mobile-nav-link", isCurrentRoute && "active")}
+            aria-current={isCurrentRoute ? "page" : undefined}
+            onClick={onLinkClick}
+          >
+            <span className="accordion-title">{tab.title}</span>
+          </Link>
+        </div>
       );
     }
 
     return (
-      <div className="mobile-accordion-section">
-        <button
-          type="button"
-          className={`mobile-accordion-trigger ${isExpanded ? "expanded" : ""}`}
-          onClick={handleToggle}
-          aria-expanded={isExpanded}
-        >
-          {tab.title}
-          <span className="chevron-arrow" />
-        </button>
-
-        <div
-          className={`mobile-accordion-content ${isExpanded ? "expanded-content" : ""}`}
-        >
-          {tab.dropdown.map((category) => (
-            <div key={category.category} className="mobile-subcat">
-              <div className="mobile-subcat-title">{category.category}</div>
-
-              <ul className="mobile-subcat-links">
-                {category.items.map((item) => (
-                  <li key={item.href} className="mobile-link-item">
-                    <Link
-                      href={item.href}
-                      onClick={onLinkClick}
-                      variant="secondary-button"
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </div>
+      <AccordionItem
+        title={tab.title}
+        isOpen={isExpanded}
+        onToggle={handleToggle}
+      >
+        {tab.dropdown.map((category) => (
+          <div key={category.category} className="mobile-subcat">
+            <div className="mobile-subcat-title">{category.category}</div>
+            <ul className="mobile-subcat-links">
+              {category.items.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="mobile-sublink"
+                    aria-current={pathname === item.href ? "page" : undefined}
+                    onClick={onLinkClick}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </AccordionItem>
     );
   },
 );
 
-MobileAccordionSection.displayName = "MobileAccordionSection";
+MobileNavSection.displayName = "MobileNavSection";
 
 const NavbarMobile = () => {
   const activeMobileCategory = useNavigationState("activeMobileCategory");
@@ -89,9 +87,9 @@ const NavbarMobile = () => {
   );
 
   return (
-    <nav className="mobile-drawer-body">
+    <nav className="mobile-nav" aria-label="Mobile">
       {mainNav.map((tab: NavTab) => (
-        <MobileAccordionSection
+        <MobileNavSection
           key={tab.id}
           tab={tab}
           isExpanded={activeMobileCategory === tab.id}

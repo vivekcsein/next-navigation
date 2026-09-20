@@ -2,7 +2,10 @@
 
 /* Shared UI components */
 @import "./ui/drawer.css";
+@import "./ui/hamburger.css";
+@import "./ui/accordian.css";
 @import "./ui/navigation.css";
+@import "./ui/footer.css";
 
 /* Shared theming engine: @theme inline mapping + base layer. No colors. */
 @import "./utils/animations.css";

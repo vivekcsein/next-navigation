@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import {
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
 const DEFAULT_CLOSE_DELAY_MS = 200;
 
@@ -13,44 +20,38 @@ type UseHoverDropdownOptions = {
   delayMs?: number;
 };
 
-type UseHoverDropdownResult = {
-  isActive: boolean;
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-};
-
 /**
  * useHoverDropdown.ts
  * --------------------------------------------------------------
- * Hover-open / delayed-close behavior for one item in a group of
- * mutually-exclusive hover dropdowns (a mega-menu with a single shared
- * `activeId`, e.g. NavigationProvider's `activeDropdown`).
+ * Open/close behavior for one item in a group of mutually-exclusive
+ * dropdowns sharing a single `activeId` (NavigationProvider's
+ * `activeDropdown`).
  *
- * The bug this fixes: a previous version of this hook (and the inline
- * logic in NavbarDesktop before that) scheduled `onSelect(null)` on
- * mouseleave unconditionally. With multiple dropdowns in the same
- * group, moving straight from dropdown A into dropdown B raced two
- * updates — B's mouseenter fires immediately (`onSelect(B.id)`), but
- * A's *delayed* close then fires ~200ms later and calls `onSelect(null)`
- * regardless, clobbering B's just-opened state back to closed. "Close"
- * meant "reset the shared value to null", not "close ME specifically,
- * only if I'm still the one that's open."
+ * - Hover: opens immediately, closes after `delayMs`. The delayed close
+ *   only fires if THIS item is still the active one, so a fast A -> B
+ *   hover isn't clobbered by A's leftover timer.
+ * - Keyboard: Enter/Space on the trigger toggles; Escape closes and
+ *   returns focus to the trigger; Tab out of the item closes it.
+ * - Touch / click: a pointer click opens (never closes — the emulated
+ *   mouseenter already opened it, a toggle would immediately undo that);
+ *   a pointerdown outside the item closes.
  *
- * This hook tracks the latest `activeId` in a ref (always current, even
- * inside a stale-closure timeout callback) and only actually calls
- * `onSelect(null)` if THIS item is still the active one when the timer
- * fires — so a fast A -> B hover leaves B open instead of being closed
- * by A's leftover timer.
+ * Usage: attach `itemRef` + `itemProps` to the wrapper <li>, `triggerRef`
+ * + `onTriggerClick` to the trigger button.
  */
 export const useHoverDropdown = ({
   id,
   activeId,
   onSelect,
   delayMs = DEFAULT_CLOSE_DELAY_MS,
-}: UseHoverDropdownOptions): UseHoverDropdownResult => {
+}: UseHoverDropdownOptions) => {
+  const itemRef = useRef<HTMLLIElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+
+  const isActive = activeId === id;
 
   const clearCloseTimeout = useCallback(() => {
     if (closeTimeoutRef.current === null) return;
@@ -58,22 +59,76 @@ export const useHoverDropdown = ({
     closeTimeoutRef.current = null;
   }, []);
 
-  const onMouseEnter = useCallback(() => {
+  const open = useCallback(() => {
     clearCloseTimeout();
     onSelect(id);
+  }, [onSelect, id, clearCloseTimeout]);
+
+  const close = useCallback(() => {
+    clearCloseTimeout();
+    if (activeIdRef.current === id) onSelect(null);
   }, [onSelect, id, clearCloseTimeout]);
 
   const onMouseLeave = useCallback(() => {
     clearCloseTimeout();
     closeTimeoutRef.current = setTimeout(() => {
-      // Only close if nothing else (another item's onMouseEnter) claimed
-      // the shared active slot in the meantime.
       if (activeIdRef.current === id) onSelect(null);
     }, delayMs);
   }, [onSelect, id, delayMs, clearCloseTimeout]);
 
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLElement>) => {
+      if (event.key !== "Escape" || activeIdRef.current !== id) return;
+      close();
+      triggerRef.current?.focus();
+    },
+    [close, id],
+  );
+
+  const onBlur = useCallback(
+    (event: FocusEvent<HTMLElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) close();
+    },
+    [close],
+  );
+
+  const onTriggerClick = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      // detail === 0 -> keyboard-initiated click (Enter/Space): toggle.
+      if (event.detail === 0 && activeIdRef.current === id) {
+        close();
+        return;
+      }
+      open();
+    },
+    [open, close, id],
+  );
+
+  // Close on a pointer press outside this item (touch users have no mouseleave).
+  useEffect(() => {
+    if (!isActive) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!itemRef.current?.contains(event.target as Node)) close();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [isActive, close]);
+
   // Don't leave a pending close running after this item unmounts.
   useEffect(() => clearCloseTimeout, [clearCloseTimeout]);
 
-  return { isActive: activeId === id, onMouseEnter, onMouseLeave };
+  return {
+    isActive,
+    itemRef,
+    triggerRef,
+    onTriggerClick,
+    itemProps: {
+      onMouseEnter: open,
+      onMouseLeave,
+      onKeyDown,
+      onBlur,
+    },
+  };
 };

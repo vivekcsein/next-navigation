@@ -21,6 +21,14 @@ type DrawerProps = {
    */
   footer?: ReactNode;
   className?: string;
+  /** Extra class on the fixed root — lets a caller offset/restyle the whole layer (e.g. start below a sticky header). */
+  rootClassName?: string;
+  /** id for the panel, so an external toggle can point `aria-controls` at it. */
+  id?: string;
+  /** Accessible name when there's no visible `title`. */
+  ariaLabel?: string;
+  /** Drop the built-in X when an external control (the header hamburger) already closes the drawer. */
+  hideCloseButton?: boolean;
 };
 
 /**
@@ -47,6 +55,10 @@ const Drawer = ({
   title,
   footer,
   className,
+  rootClassName,
+  id,
+  ariaLabel,
+  hideCloseButton = false,
 }: DrawerProps) => {
   const mounted = useMounted();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -87,7 +99,7 @@ const Drawer = ({
   if (!mounted) return null;
 
   return createPortal(
-    <div className={cn("drawer-root", isOpen && "is-open")}>
+    <div className={cn("drawer-root", isOpen && "is-open", rootClassName)}>
       <button
         type="button"
         className="drawer-backdrop"
@@ -97,13 +109,21 @@ const Drawer = ({
 
       <div
         ref={panelRef}
+        id={id}
         className={cn("drawer-panel", `drawer-panel-${origin}`, className)}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
+        aria-label={title ? undefined : ariaLabel}
         tabIndex={-1}
       >
-        <DrawerHeader title={title} titleId={titleId} onClose={onClose} />
+        {(title || !hideCloseButton) && (
+          <DrawerHeader
+            title={title}
+            titleId={titleId}
+            onClose={hideCloseButton ? undefined : onClose}
+          />
+        )}
         <div className="drawer-content">{children}</div>
         {footer && <div className="drawer-footer">{footer}</div>}
       </div>
@@ -117,7 +137,7 @@ export default Drawer;
 type DrawerHeaderProps = {
   title?: ReactNode;
   titleId: string;
-  onClose: () => void;
+  onClose?: () => void;
 };
 
 const DrawerHeader = ({ title, titleId, onClose }: DrawerHeaderProps) => (
@@ -130,14 +150,16 @@ const DrawerHeader = ({ title, titleId, onClose }: DrawerHeaderProps) => (
       <span />
     )}
 
-    <button
-      type="button"
-      className="drawer-close-btn"
-      aria-label="Close"
-      onClick={onClose}
-    >
-      <span />
-      <span />
-    </button>
+    {onClose && (
+      <button
+        type="button"
+        className="drawer-close-btn"
+        aria-label="Close"
+        onClick={onClose}
+      >
+        <span />
+        <span />
+      </button>
+    )}
   </div>
 );

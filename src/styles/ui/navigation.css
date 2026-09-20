@@ -10,17 +10,34 @@
    mobile toggle + drawer below it. Keep both in sync if either changes.
    ----------------------------------------------------------------------------- */
 
+/* Also the offset the mobile drawer starts below (see mobile-menu-root). */
+:root {
+  --header-height: 4rem;
+}
+
 .header {
   position: relative;
   z-index: 40;
   width: 100%;
-  background-color: var(--background);
+  background-color: color-mix(in oklch, var(--background) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
+  /* When the menu closes, drop back under the drawer layer only after its
+     slide-out finishes, so the header never flickers beneath the panel. */
+  transition: z-index 0s linear 400ms;
 }
 
 .header-sticky {
   position: sticky;
   top: 0;
+}
+
+/* Above the drawer layer (10000, drawer.css) so the hamburger/X stays
+   visible and clickable while the menu is open. */
+.header.menu-open {
+  z-index: 10001;
+  transition-delay: 0s;
 }
 
 .header-main {
@@ -29,8 +46,9 @@
   justify-content: space-between;
   gap: 1rem;
   max-width: 80rem;
+  height: var(--header-height);
   margin-inline: auto;
-  padding: 0.75rem 1.5rem;
+  padding-inline: 1.5rem;
 }
 
 /* ---------- Desktop nav ---------- */
@@ -56,73 +74,114 @@
   position: relative;
 }
 
-/* Applies whether the item rendered as a <Link> (plain destination) or a
-   <Button variant="ghost"> (dropdown trigger) — both need to look identical. */
+/* Plain link and dropdown trigger share this — they must look identical.
+   The trigger is a bare <button>, so reset its native chrome. */
 .nav-btn {
+  --nav-easing: cubic-bezier(0.16, 1, 0.3, 1);
+
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   padding: 0.5rem 0.75rem;
+  border: 0;
   border-radius: var(--radius);
+  background: transparent;
+  font: inherit;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--foreground);
   text-decoration: none;
   white-space: nowrap;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
+  cursor: pointer;
+  transition: color 200ms ease;
 }
 
-.nav-btn:hover {
-  /* background-color: var(--accent);
-  color: var(--accent-foreground); */
-  transform: none;
-  filter: none;
-}
-
+.nav-btn:hover,
 .nav-btn.active {
   color: var(--primary);
-  font-weight: 600;
 }
 
+.nav-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* Underline — sized to the label text only (not the button's padding, not
+   the chevron). Grows in from the left on hover/open/current and leaves
+   out through the right, so it always travels one direction. */
+.nav-label {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 2px;
+}
+
+.nav-label::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--primary);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 380ms var(--nav-easing);
+}
+
+.nav-btn:hover .nav-label::after,
+.nav-btn:focus-visible .nav-label::after,
+.nav-btn.active .nav-label::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Chevron on dropdown triggers — same easing as the underline, flips when open */
 .chevron-arrow {
   width: 0.4rem;
   height: 0.4rem;
+  margin-top: -2px;
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
-  transform: rotate(45deg);
+  transform: translateY(0) rotate(45deg);
+  transition: transform 380ms var(--nav-easing, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.nav-btn:hover .chevron-arrow {
+  transform: translateY(2px) rotate(45deg);
 }
 
 .nav-btn[aria-expanded="true"] .chevron-arrow {
-  transform: rotate(-135deg);
+  transform: translateY(2px) rotate(-135deg);
 }
 
 /* ---------- Mega dropdown ---------- */
 
+/* The wrapper only shows/hides (and centers) the panel. Its padding-top is
+   the hover bridge between trigger and panel — no dead gap for the pointer
+   to fall through. The entrance animation runs on the inner panel, driven
+   by animation.config ("dropdown" + staggered "fade" columns). */
 .mega-dropdown {
   position: absolute;
-  top: calc(100% + 0.25rem);
+  top: 100%;
   left: 50%;
+  z-index: 50;
   min-width: 10rem;
+  padding-top: 0.5rem;
+  transform: translateX(-50%);
 
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-
-  background: var(--popover);
-  color: var(--popover-foreground);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 30px
-    color-mix(in oklch, var(--foreground) 12%, transparent);
+  transition:
+    opacity 150ms ease,
+    visibility 0s linear 150ms;
 }
 
 .mega-dropdown.is-visible {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateX(-50%) translateY(0);
+  transition-delay: 0s;
 }
 
 .mega-dropdown-inner {
@@ -130,20 +189,30 @@
   grid-auto-flow: column;
   gap: 1.5rem;
   padding: 1.25rem;
+  transform-origin: top center;
+
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 0.25rem);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, var(--foreground) 4%, transparent),
+    0 18px 40px -12px color-mix(in oklch, var(--foreground) 22%, transparent);
 }
 
 .dropdown-column {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: 10rem;
+  min-width: 11rem;
 }
 
 .column-heading {
+  margin: 0;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--muted-foreground);
 }
 
@@ -151,346 +220,144 @@
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .dropdown-link-item {
   display: block;
-  padding: 0.4rem 0.5rem;
+  padding: 0.45rem 0.6rem;
   border-radius: var(--radius);
   font-size: 0.9rem;
   color: var(--foreground);
   text-decoration: none;
-  transition: background-color 0.15s ease;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease,
+    padding-left 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.dropdown-link-item:hover {
+.dropdown-link-item:hover,
+.dropdown-link-item:focus-visible,
+.dropdown-link-item[aria-current="page"] {
+  padding-left: 0.85rem;
   background-color: var(--accent);
   color: var(--accent-foreground);
 }
 
-/* ---------- Header actions (Sign In + mobile toggle) ---------- */
+.dropdown-link-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* ---------- Header actions (theme toggle + hamburger) ---------- */
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
-/* Hamburger — three <span> children, no icon font/SVG. Ghost variant
-   (see button.css) already strips background/border, so this only needs
-   to size the tap target and position the lines. */
-.mobile-toggle-btn {
-  display: inline-flex;
-  position: relative;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 0.3rem;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
+/* ---------- Mobile drawer ----------
+   The drawer itself is the generic <Drawer> (drawer.css); these rules just
+   start it below the header so the hamburger/X stays uncovered. Hamburger
+   styles live in hamburger.css, accordion styles in accordion.css. */
+
+.mobile-menu-root .drawer-backdrop,
+.mobile-menu-root .drawer-panel {
+  top: var(--header-height);
 }
 
 @media (min-width: 1024px) {
-  .mobile-toggle-btn {
+  .mobile-menu-root {
     display: none;
   }
 }
 
-.mobile-toggle-btn:hover {
-  transform: none;
-  filter: none;
-}
-
-.mobile-toggle-btn span {
-  display: block;
-  width: 1.25rem;
-  height: 2px;
-  border-radius: 1px;
-  background-color: var(--foreground);
-  transition:
-    transform 0.25s ease,
-    opacity 0.2s ease;
-}
-
-/* Morph into an X when open */
-.mobile-toggle-btn.open span:nth-child(1) {
-  transform: translateY(0.4rem) rotate(45deg);
-}
-
-.mobile-toggle-btn.open span:nth-child(2) {
-  opacity: 0;
-}
-
-.mobile-toggle-btn.open span:nth-child(3) {
-  transform: translateY(-0.4rem) rotate(-45deg);
-}
-
-/* ---------- Mobile drawer ---------- */
-
-.mobile-drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  background-color: color-mix(in oklch, var(--popover) 40%, transparent);
-
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.25s ease,
-    visibility 0.25s;
-}
-
-.mobile-drawer-backdrop.is-visible {
-  opacity: 1;
-  visibility: visible;
-}
-
-@media (min-width: 1024px) {
-  .mobile-drawer-backdrop {
-    display: none;
-  }
-}
-
-.mobile-drawer {
-  position: fixed;
-  top: 0;
-  /* left: -100%; */
-  right: 0;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-  width: min(20rem, 85vw);
-  height: 100%;
-
-  background: var(--background);
-  border-left: 1px solid var(--border);
-  box-shadow: -12px 0 30px
-    color-mix(in oklch, var(--foreground) 12%, transparent);
-
-  transform: translateX(100%);
-  transition: transform 0.3s ease;
-}
-
-.mobile-drawer.is-open {
-  transform: translateX(0);
-}
-
-@media (min-width: 1024px) {
-  .mobile-drawer {
-    display: none;
-  }
-}
-
-.mobile-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1.5rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.mobile-accordion-section {
+.mobile-nav {
   display: flex;
   flex-direction: column;
 }
 
-.mobile-accordion-trigger {
+/* Plain (non-dropdown) mobile links — same row as an accordion trigger */
+.mobile-nav-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.75rem 0.5rem;
-  border-radius: var(--radius);
+  min-height: 3rem;
+  padding: 0.75rem 0.25rem;
   font-size: 1rem;
   font-weight: 500;
   color: var(--foreground);
   text-decoration: none;
-  text-align: left;
+  transition: color 200ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-accordion-trigger:hover {
-  background-color: var(--accent);
-  color: var(--accent-foreground);
-  transform: none;
-  filter: none;
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+  color: var(--primary);
 }
 
-.mobile-accordion-trigger.expanded .chevron-arrow {
-  transform: rotate(-135deg);
+.mobile-nav-link:focus-visible {
+  outline: none;
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 2px var(--ring);
 }
 
-.mobile-accordion-content {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 0.25s ease,
-    opacity 0.2s ease;
-}
-
-.mobile-accordion-content > * {
-  overflow: hidden;
-}
-
-.mobile-accordion-content.expanded-content {
-  grid-template-rows: 1fr;
-  opacity: 1;
+/* Underline for links matches the accordion title underline */
+.mobile-nav-link:hover .accordion-title::after,
+.mobile-nav-link.active .accordion-title::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
 
 .mobile-subcat {
-  padding: 0.25rem 0.5rem 0.75rem 1rem;
+  padding-bottom: 0.5rem;
 }
 
 .mobile-subcat-title {
+  margin-bottom: 0.25rem;
+  padding-inline: 0.5rem;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--muted-foreground);
-  margin-bottom: 0.4rem;
 }
 
 .mobile-subcat-links {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
-.mobile-link-item a {
-  display: block;
+.mobile-sublink {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
   padding: 0.5rem;
   border-radius: var(--radius);
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
   color: var(--foreground);
   text-decoration: none;
+  transition:
+    background-color 200ms ease,
+    color 200ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Padding and border-top for this footer come from the generic
-   .drawer-footer slot it renders inside (see Header.tsx + drawer.css) —
-   nothing nav-specific needed here beyond the button's own layout. */
-.mobile-sign-btn {
-  display: flex;
-  width: 100%;
-  text-decoration: none;
+.mobile-sublink:hover,
+.mobile-sublink:active,
+.mobile-sublink[aria-current="page"] {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
 }
 
-/* -----------------------------------------------------------------------------
-   Site Footer — one responsive component for both breakpoints (see
-   Footer.tsx). Mobile: stacked. Desktop (min-width: 768px, media query
-   below): brand block and nav columns side by side.
-   ----------------------------------------------------------------------------- */
-
-.site-footer {
-  border-top: 1px solid var(--border);
-  background: var(--background);
-  padding: 3rem 1.5rem 1.5rem;
-}
-
-.site-footer-inner {
-  max-width: 72rem;
-  margin-inline: auto;
-}
-
-.site-footer-top {
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
-}
-
-.site-footer-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  max-width: 24rem;
-}
-
-.site-footer-tagline {
-  font-size: 0.875rem;
-  color: var(--muted-foreground);
-}
-
-/* Site-footer social icons (.site-footer-social / .site-footer-social-link
-   / .site-footer-tooltip) are NOT styled here — Footer.tsx renders them
-   through <SocialLinks /> (components/layouts/SocialLinks.tsx), which
-   owns those class names via its own styles/layouts/social-links.css.
-   Keep that split: don't redefine them in this file too. */
-
-.site-footer-nav {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-}
-
-.site-footer-column {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.site-footer-heading {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--foreground);
-}
-
-.site-footer-links {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.site-footer-link {
-  font-size: 0.875rem;
-  color: var(--muted-foreground);
-  text-decoration: none;
-  transition: color 150ms ease;
-}
-
-.site-footer-link:hover {
-  color: var(--foreground);
-}
-
-.site-footer-bottom {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
-}
-
-.site-footer-copyright {
-  font-size: 0.8125rem;
-  color: var(--muted-foreground);
-  text-align: center;
-}
-
-/* Desktop: brand block + nav columns side by side, copyright left-aligned */
-@media (min-width: 768px) {
-  .site-footer-top {
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 3rem;
-  }
-
-  .site-footer-nav {
-    grid-template-columns: repeat(3, 1fr);
-    flex: 1;
-    justify-content: flex-end;
-  }
-
-  .site-footer-bottom,
-  .site-footer-copyright {
-    text-align: left;
-  }
+.mobile-sublink:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
 }

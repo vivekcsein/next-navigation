@@ -1,15 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { memo } from "react";
+import { memo, useId } from "react";
 import {
   useNavigationActions,
   useNavigationState,
 } from "@/components/providers/NavigationProvider";
-import { Button, Link } from "@/components/ui";
 import { mainNav } from "@/packages/configs/navigation.config";
 import { useHoverDropdown } from "@/packages/hooks/useHoverDropdown";
 import { getAnimationStyle } from "@/packages/utils/animation";
+import { cn } from "@/packages/utils/cn";
 import type { DropdownCategory, NavTab } from "@/types/navigation";
 
 type NavItemProps = {
@@ -18,68 +19,95 @@ type NavItemProps = {
   onSelect: (id: string | null) => void;
 };
 
+/** Both the plain link and the dropdown trigger render their text in this
+ *  span, so the underline (navigation.css) is exactly as wide as the text. */
+const NavLabel = ({ children }: { children: string }) => (
+  <span className="nav-label">{children}</span>
+);
+
 const NavItem = memo(({ tab, activeId, onSelect }: NavItemProps) => {
   const pathname = usePathname();
+  const panelId = useId();
   const hasDropdown = Boolean(tab.dropdown?.length);
-  const { isActive, onMouseEnter, onMouseLeave } = useHoverDropdown({
-    id: tab.id,
-    activeId,
-    onSelect,
-  });
+  const { isActive, itemRef, triggerRef, itemProps, onTriggerClick } =
+    useHoverDropdown({ id: tab.id, activeId, onSelect });
 
-  // No dropdown for this tab -> it's just a destination. Render a plain Link,
-  // skip the hover handlers and mega-dropdown markup entirely (nothing to
-  // toggle, so no reason to touch the shared navigation store for this item),
-  // and highlight it when it matches the current route.
+  // Plain destination: no dropdown markup, no hover handlers.
   if (!hasDropdown) {
     const isCurrentRoute = tab.href !== undefined && pathname === tab.href;
 
     return (
       <li className="nav-item">
         <Link
-          variant="primary"
-          underline="left"
           href={tab.href ?? "#"}
-          className={`nav-btn ${isCurrentRoute ? "active" : ""}`}
+          className={cn("nav-btn", isCurrentRoute && "active")}
+          aria-current={isCurrentRoute ? "page" : undefined}
         >
-          {tab.title}
+          <NavLabel>{tab.title}</NavLabel>
         </Link>
       </li>
     );
   }
 
+  const isCurrentSection = Boolean(
+    tab.dropdown?.some((category) =>
+      category.items.some((item) => item.href === pathname),
+    ),
+  );
+
   return (
-    <li
-      className="nav-item"
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      <Button
-        variant="secondary"
-        className={`nav-btn ${isActive ? "active" : ""}`}
+    <li className="nav-item" ref={itemRef} {...itemProps}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={cn("nav-btn", (isActive || isCurrentSection) && "active")}
         aria-haspopup="true"
         aria-expanded={isActive}
+        aria-controls={panelId}
+        onClick={onTriggerClick}
       >
-        {tab.title}
-      </Button>
+        <NavLabel>{tab.title}</NavLabel>
+        <span className="chevron-arrow" aria-hidden="true" />
+      </button>
 
-      {/* Content-Driven Dropdown Panel */}
-      <div className={`mega-dropdown ${isActive ? "is-visible" : ""}`}>
+      {/* Wrapper handles show/hide (opacity/visibility) and bridges the hover
+          gap to the trigger; the inner panel plays the entrance animation. */}
+      <div
+        id={panelId}
+        className={cn("mega-dropdown", isActive && "is-visible")}
+      >
         <div
           className="mega-dropdown-inner"
-          // `getAnimationStyle` returns the full animationName/duration/
-          // timing/fill set — a bare keyframe name via `{ animation: "zoomIn" }`
-          // sets ONLY animation-name; duration defaults to 0s and it never
-          // visibly plays. See packages/utils/animation.ts.
-          style={getAnimationStyle("fade", "bottom", { durationMs: 500 })}
+          // Only set while open, so the animation replays on every open.
+          // (Set unconditionally it ran once on page load, while the panel
+          // was still hidden, and never again.)
+          style={
+            isActive
+              ? getAnimationStyle("fade", "none", { durationMs: 380 })
+              : undefined
+          }
         >
           {tab.dropdown?.map((subCat: DropdownCategory) => (
-            <div key={subCat.category} className="dropdown-column">
+            <div
+              key={subCat.category}
+              className="dropdown-column"
+              style={
+                isActive
+                  ? getAnimationStyle("fade", "none", {
+                      durationMs: 320,
+                    })
+                  : undefined
+              }
+            >
               <h4 className="column-heading">{subCat.category}</h4>
               <ul className="column-links">
                 {subCat.items.map((item) => (
                   <li key={item.href}>
-                    <Link href={item.href} className="dropdown-link-item">
+                    <Link
+                      href={item.href}
+                      className="dropdown-link-item"
+                      aria-current={pathname === item.href ? "page" : undefined}
+                    >
                       {item.label}
                     </Link>
                   </li>
@@ -100,7 +128,7 @@ const NavbarDesktop = () => {
   const { setActiveDropdown } = useNavigationActions();
 
   return (
-    <nav className="desktop-nav">
+    <nav className="desktop-nav" aria-label="Main">
       <ul className="nav-links-list">
         {mainNav.map((tab: NavTab) => (
           <NavItem
